@@ -14,6 +14,6 @@ These can be installed on ubuntu 10.04 by running: sudo apt-get install python-a
 
 On Ubuntu 9.10 I had to use easy_install from python-setuptools package to install argparse. 9.10 has a package for pymssql but the version it provides doesn't seem to work so I compiled pymssql myself on 9.10 and the package worked. 
 
-I'm sure you can find packages to install this on most all other Linux distros but I don't know the commands and I haven't tested it. 
+I'm sure you can find packages to install argparse and pymssql on most all other Linux distros but I don't know the commands and I haven't tested it. 
 
 You need to specify a SQL Server user to connect to the server which must be a an actual SQL Server user (cannot use Windows Auth or Active Directory). This user must be able to perform a select on msdb..sysjobs and msdb..sysjobhistory.
