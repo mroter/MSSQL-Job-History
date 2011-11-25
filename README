@@ -1,0 +1,19 @@
+This is a simple script because I saw the idea of monitoring failed jobs at
+http://goo.gl/enkjI however I really didn't want to implement an unnecessarily
+complex, multi part, compiled java program on my nagios hosts to perform this
+same check. I added a couple features as well such as listing the failed jobs
+and the time they had last run as well as allowing you to specify a single job
+to check which will return OK|CRITICAL for that job alone.
+
+INSTALL 
+-------
+
+This was built and tested on a few different Ubuntu 10.04 servers and on one Ubuntu 9.10 server. This script requires python argparse and pymssql modules. 
+
+These can be installed on ubuntu 10.04 by running: sudo apt-get install python-argparse python-pymssql 
+
+On Ubuntu 9.10 I had to use easy_install from python-setuptools package to install argparse. 9.10 has a package for pymssql but the version it provides doesn't seem to work so I compiled pymssql myself on 9.10 and the package worked. 
+
+I'm sure you can find packages to install this on most all other Linux distros but I don't know the commands and I haven't tested it. 
+
+You need to specify a SQL Server user to connect to the server which must be a an actual SQL Server user (cannot use Windows Auth or Active Directory). This user must be able to perform a select on msdb..sysjobs and msdb..sysjobhistory.
