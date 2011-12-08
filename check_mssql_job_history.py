@@ -61,6 +61,7 @@ parser.add_argument("-p", "--port", action="store", type=int, help="SQL Server p
 parser.add_argument("-U", "--user", action="store", help="User name to connect as (does not support Windows built in or Active Directory accounts)", required=True, dest="user")
 parser.add_argument("-P", "--password", action="store", help="Password to for user you are authenticating as", required=True, dest="password")
 parser.add_argument("-j", "--job", action="store", help="Query a specific job by name instead of all jobs", dest="job");
+parser.add_argument("-x", "--exclude", action="store", help="A comma seperated list of jobs not to check", dest="exclude");
 results = parser.parse_args()
 
 try:
@@ -71,6 +72,9 @@ except:
 cur = conn.cursor()
 
 if results.job:
+    if results.exclude:
+        nagios_exit(3, "-x/--exclude cannot be used with -j/--job")
+
     tsql_cmd = """SELECT TOP 1 [j].[name], [h].[run_date], [h].[run_time], [h].[run_status]
     FROM [msdb]..[sysjobs] [j]
     INNER JOIN [msdb]..[sysjobhistory] [h] ON [j].[job_id] = [h].[job_id]
@@ -90,7 +94,11 @@ else:
         WHERE run_status != 1
         GROUP BY [job_id]
     ) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
-    WHERE [j].[enabled] = 1"""
+    WHERE [j].[enabled] = 1 """
+
+    if results.exclude:
+        for x in results.exclude.split(','):
+            tsql_cmd += "AND [j].[name] != '%s' " % (x)
 
 cur.execute(tsql_cmd)
 rows = cur.fetchall()
