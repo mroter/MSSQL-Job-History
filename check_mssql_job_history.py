@@ -62,6 +62,7 @@ parser.add_argument("-U", "--user", action="store", help="User name to connect a
 parser.add_argument("-P", "--password", action="store", help="Password to for user you are authenticating as", required=True, dest="password")
 parser.add_argument("-j", "--job", action="store", help="Query a specific job by name instead of all jobs", dest="job");
 parser.add_argument("-x", "--exclude", action="store", help="A comma seperated list of jobs not to check", dest="exclude");
+parser.add_argument("-l", "--list", action="store_true", help="This will list all jobs in on your server. This does not return a nagios check and is used for setup and debugging", dest="list_jobs")
 results = parser.parse_args()
 
 try:
@@ -70,6 +71,24 @@ except:
     nagios_exit(3, "Unable to connect to SQL Server")
 
 cur = conn.cursor()
+
+if results.list_jobs:
+    tsql_cmd = """ SELECT [name], [enabled]
+    FROM [msdb]..[sysjobs]"""
+
+    cur.execute(tsql_cmd)
+    rows = cur.fetchall()
+
+    print "Jobs on %s" % (results.host)
+    print "\"-\" at the begining means the job is disabled"
+    print
+
+    for row in rows:
+        if int(row[1]) == 1:
+            print "  %s" % (row[0])
+        else:
+            print "- %s" % (row[0])
+    exit()
 
 if results.job:
     if results.exclude:
@@ -103,7 +122,6 @@ else:
 cur.execute(tsql_cmd)
 rows = cur.fetchall()
 rowcount = cur.rowcount
-
 
 if rowcount == 0:
     if results.job:
