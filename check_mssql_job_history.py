@@ -60,7 +60,7 @@ parser.add_argument("-H", "--host", action="store", help="Host name or IP addres
 parser.add_argument("-p", "--port", action="store", type=int, help="SQL Server port number (only change if you know you need to)", default=1433, dest="port")
 parser.add_argument("-U", "--user", action="store", help="User name to connect as (does not support Windows built in or Active Directory accounts)", required=True, dest="user")
 parser.add_argument("-P", "--password", action="store", help="Password to for user you are authenticating as", required=True, dest="password")
-parser.add_argument("-j", "--job", action="store", help="Query a specific job by name instead of all jobs", dest="job");
+parser.add_argument("-j", "--job", action="store", help="A comma seperate list of jobs to check instead of all enabled jobs", dest="job");
 parser.add_argument("-x", "--exclude", action="store", help="A comma seperated list of jobs not to check", dest="exclude");
 parser.add_argument("-l", "--list", action="store_true", help="This will list all jobs in on your server. This does not return a nagios check and is used for setup and debugging", dest="list_jobs")
 results = parser.parse_args()
@@ -90,60 +90,43 @@ if results.list_jobs:
             print "- %s" % (row[0])
     exit()
 
+tsql_cmd = """SELECT [j].[name], [h].[run_date], [h].[run_time]
+FROM [msdb]..[sysjobs] [j]
+INNER JOIN [msdb]..[sysjobhistory] [h] ON [j].[job_id] = [h].[job_id]
+INNER JOIN (
+    SELECT [job_id], MAX(instance_id) AS max_instance_id
+    FROM [msdb]..[sysjobhistory]
+    WHERE run_status != 1
+    GROUP BY [job_id]
+) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
+WHERE [j].[enabled] = 1"""
+
 if results.job:
-    if results.exclude:
-        nagios_exit(3, "-x/--exclude cannot be used with -j/--job")
+    tsql_cmd += "\nAND [j].[name] = '%s'" % (results.job.split(',')[0].strip())
 
-    tsql_cmd = """SELECT TOP 1 [j].[name], [h].[run_date], [h].[run_time], [h].[run_status]
-    FROM [msdb]..[sysjobs] [j]
-    INNER JOIN [msdb]..[sysjobhistory] [h] ON [j].[job_id] = [h].[job_id]
-    INNER JOIN (
-        SELECT [job_id], MAX(instance_id) AS max_instance_id
-        FROM [msdb]..[sysjobhistory]
-        GROUP BY [job_id]
-    ) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
-    WHERE [j].[name] = '%s'""" % (results.job)
-else:
-    tsql_cmd = """SELECT [j].[name], [h].[run_date], [h].[run_time]
-    FROM [msdb]..[sysjobs] [j]
-    INNER JOIN [msdb]..[sysjobhistory] [h] ON [j].[job_id] = [h].[job_id]
-    INNER JOIN (
-        SELECT [job_id], MAX(instance_id) AS max_instance_id
-        FROM [msdb]..[sysjobhistory]
-        WHERE run_status != 1
-        GROUP BY [job_id]
-    ) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
-    WHERE [j].[enabled] = 1 """
+    if len(results.job.split(',')) > 1:
+        for x in results.job.split(',')[1:]:
+            tsql_cmd += "\nOR [j].[name] = '%s'" % (x.strip())
 
-    if results.exclude:
-        for x in results.exclude.split(','):
-            tsql_cmd += "AND [j].[name] != '%s' " % (x)
+elif results.exclude:
+    for x in results.exclude.split(','):
+        tsql_cmd += "\nAND [j].[name] != '%s' " % (x.strip())
 
 cur.execute(tsql_cmd)
 rows = cur.fetchall()
 rowcount = cur.rowcount
 
 if rowcount == 0:
-    if results.job:
-        nagios_exit(3, "Could not find job %s (possibly it hasn't run yet or the job name is misspelled)" % (results.job))
-    else:
-        nagios_exit(0, "All jobs completed successfully on their last run")
+    nagios_exit(0, "All jobs completed successfully on their last run")
 else:
-    if results.job:
-        complete_time = run_datetime(rows[0][1], rows[0][2])
-        if rows[0][3] == 0:
-            nagios_exit(2, "Job %s last run at %s" % (results.job, complete_time))
-        else:
-            nagios_exit(0, "Job %s last run at %s" % (results.job, complete_time))
-    else:
-        failed_stats = "Number of failed jobs: %d - Failed Jobs: " % (rowcount)
-        for row in rows:
-            failed_stats += "%s last run at %s, " % (row[0], run_datetime(row[1], row[2]))
-        failed_stats = failed_stats.rstrip(', ')
+    failed_stats = "Number of failed jobs: %d - Failed Jobs: " % (rowcount)
+    for row in rows:
+        failed_stats += "%s last run at %s, " % (row[0], run_datetime(row[1], row[2]))
+    failed_stats = failed_stats.rstrip(', ')
 
-        if rowcount >= results.warning and rowcount < results.critical:
-            nagios_exit(1, failed_stats)
-        elif rowcount >= results.critical:
-            nagios_exit(2, failed_stats)
-        else:
-            nagios_exit(3, "This should never appear")
+    if rowcount >= results.warning and rowcount < results.critical:
+        nagios_exit(1, failed_stats)
+    elif rowcount >= results.critical:
+        nagios_exit(2, failed_stats)
+    else:
+        nagios_exit(3, "This should never appear")
