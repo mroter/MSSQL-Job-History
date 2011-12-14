@@ -63,7 +63,7 @@ parser.add_argument("-P", "--password", action="store", help="Password to for us
 parser.add_argument("-j", "--job", action="store", help="A comma seperate list of jobs to check instead of all enabled jobs", dest="job");
 parser.add_argument("-x", "--exclude", action="store", help="A comma seperated list of jobs not to check", dest="exclude");
 parser.add_argument("-l", "--list", action="store_true", help="This will list all jobs in on your server. This does not return a nagios check and is used for setup and debugging", dest="list_jobs")
-parser.add_argument("-d", "--debug", action="store_true", help="This shows the Transaction SQL code that will be executed to help debug", dest="debug")
+parser.add_argument("-v", "--verbose", action="store_true", help="This shows the Transaction SQL code that will be executed to help debug", dest="verbose")
 results = parser.parse_args()
 
 try:
@@ -77,7 +77,7 @@ if results.list_jobs:
     tsql_cmd = """ SELECT [name], [enabled]
     FROM [msdb]..[sysjobs]"""
 
-    if results.debug:
+    if results.verbose:
         print "%s\n" % (tsql_cmd)
 
     cur.execute(tsql_cmd)
@@ -114,7 +114,7 @@ elif results.exclude:
     for x in results.exclude.split(','):
         tsql_cmd += "\nAND [j].[name] != '%s' " % (x.strip())
 
-if results.debug:
+if results.verbose:
     print "%s\n" % (tsql_cmd)
 
 cur.execute(tsql_cmd)
