@@ -99,10 +99,9 @@ INNER JOIN [msdb]..[sysjobhistory] [h] ON [j].[job_id] = [h].[job_id]
 INNER JOIN (
     SELECT [job_id], MAX(instance_id) AS max_instance_id
     FROM [msdb]..[sysjobhistory]
-    WHERE run_status != 1
     GROUP BY [job_id]
 ) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
-WHERE [j].[enabled] = 1"""
+WHERE [j].[enabled] = 1 AND [h].[run_status] = 0"""
 
 if results.job:
     tsql_cmd += "\nAND [j].[name] = '%s'" % (results.job.split(',')[0].strip())
