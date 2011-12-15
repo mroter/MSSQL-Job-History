@@ -101,18 +101,21 @@ INNER JOIN (
     FROM [msdb]..[sysjobhistory]
     GROUP BY [job_id]
 ) [tmp_sjh] ON [h].[job_id] = [tmp_sjh].[job_id] AND [h].[instance_id] = [tmp_sjh].[max_instance_id]
-WHERE [j].[enabled] = 1 AND [h].[run_status] = 0"""
+WHERE [j].[enabled] = 1
+AND [h].[run_status] = 0"""
 
 if results.job:
-    tsql_cmd += "\nAND [j].[name] = '%s'" % (results.job.split(',')[0].strip())
+    tsql_cmd += "\nAND (\n\t[j].[name] = '%s'" % (results.job.split(',')[0].strip())
 
     if len(results.job.split(',')) > 1:
         for x in results.job.split(',')[1:]:
-            tsql_cmd += "\nOR [j].[name] = '%s'" % (x.strip())
+            tsql_cmd += "\n\tOR [j].[name] = '%s'" % (x.strip())
+
+    tsql_cmd += "\n)"
 
 elif results.exclude:
     for x in results.exclude.split(','):
-        tsql_cmd += "\nAND [j].[name] != '%s' " % (x.strip())
+        tsql_cmd += "\nAND [j].[name] != '%s'" % (x.strip())
 
 if results.verbose:
     print "%s\n" % (tsql_cmd)
