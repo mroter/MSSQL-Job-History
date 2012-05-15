@@ -134,6 +134,8 @@ else:
 
     if rowcount >= results.warning and rowcount < results.critical:
         nagios_exit(1, failed_stats)
+    elif rowcount < results.warning:
+        nagios_exit(0, "%d failed jobs is below the warning count specified." % (rowcount))
     elif rowcount >= results.critical:
         nagios_exit(2, failed_stats)
     else:
